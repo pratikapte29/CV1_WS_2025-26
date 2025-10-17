@@ -121,8 +121,12 @@ def exercise4(img):
     
     # TODO: Time the vectorized approach
     start_time_vec = time.time()
+
     # TODO: Add 50 and clip in one line using np.clip()
-    result = None
+
+    # NOTE: First convert to int16 to avoid overflow, then back to uint8 
+    #       after clipping, or else overflow causes img to change color 
+    result = np.clip(img.astype(np.int16) + 50, 0, 255).astype(np.uint8)
     end_time_vec = time.time()
     
     # TODO: Print execution times
@@ -130,7 +134,12 @@ def exercise4(img):
     print(f"Vectorized approach: {end_time_vec - start_time_vec:.4f} seconds")
     
     # TODO: Display the result
-    
+    display_imgs = cv2.hconcat([img, result])
+
+    cv2.imshow("Original vs Brightness Adjusted", display_imgs)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     print("Exercise 4 completed!\n")
     return result
 
@@ -236,7 +245,7 @@ def main():
         return
     exercise2(img)
     # exercise3(img)
-    # exercise4(img)
+    exercise4(img)
     # exercise5(img)
     # exercise6(img)
     # exercise7(img)
