@@ -183,17 +183,26 @@ def exercise6(img):
     print("Exercise 6: Binary Masking")
     
     # TODO: Convert to grayscale using cv2.cvtColor() with cv2.COLOR_BGR2GRAY
-    gray = None
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     # TODO: Apply binary threshold at value 128
     # Use cv2.threshold() with cv2.THRESH_BINARY
-    _, mask = None, None
+    _, mask = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
     
     # TODO: Apply mask to original color image
     # Hint: Use cv2.bitwise_and() with the mask
-    masked = None
-    
+    masked = cv2.bitwise_and(img, img, mask=mask)
+
     # TODO: Display original, mask, and masked result
+    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # Convert mask to 3-channel for displaying together
+
+    # print(img.dtype, mask.dtype, masked.dtype)  .... just to debug
+    
+    display_imgs = cv2.hconcat([img, mask, masked])
+
+    cv2.imshow("Original vs Mask vs Masked Result", display_imgs)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     print("Exercise 6 completed!\n")
 
@@ -247,7 +256,7 @@ def main():
     # exercise3(img)
     exercise4(img)
     # exercise5(img)
-    # exercise6(img)
+    exercise6(img)
     # exercise7(img)
     
     print("=" * 60)
