@@ -68,10 +68,14 @@ def exercise2(img):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     
     # TODO: Split HSV into H, S, V channels using cv2.split()
-    h, s, v = cv2.split()
+    h, s, v = cv2.split(img)
     
     # TODO: Display all three channels
     # Hint: You can concatenate them horizontally using cv2.hconcat()
+    
+    cv2.imshow("HSV Channels", cv2.hconcat([h, s, v]))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     print("Exercise 2 completed!\n")
     return hsv
@@ -228,9 +232,9 @@ def main():
     
     # Uncomment the exercises you want to run:
     img = exercise1()
-    # if img is None:
-    #     return
-    # exercise2(img)
+    if img is None:
+        return
+    exercise2(img)
     # exercise3(img)
     # exercise4(img)
     # exercise5(img)
