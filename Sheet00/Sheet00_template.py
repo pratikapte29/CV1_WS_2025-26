@@ -91,14 +91,21 @@ def exercise3(img):
     """
     print("Exercise 3: Brightness Adjustment with Loops")
     
-    # TODO: Create a copy of the image
-    result = None
+    result = img.copy()  # TODO: Create a copy of the image
     
-    # TODO: Get image dimensions
+    height, width, channels = img.shape  # TODO: Get image dimensions
     
     # TODO: Use nested for-loops to iterate through each pixel, add 50 to pixel value, and clip pixel value to [0, 255]
+    for y in range(height):
+        for x in range(width):
+            for c in range(channels):
+                new_value = img[y, x, c] + 50
+                result[y, x, c] = np.clip(new_value, 0, 255)
     
-    # TODO: Display original and result side by side
+    combined = np.hstack((img, result))  # TODO: Display original and result side by side
+    cv2.imshow("Original (Left) | Brightened (Right)", combined)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     print("Exercise 3 completed!\n")
     return result
@@ -153,23 +160,26 @@ def exercise5(img):
     """
     print("Exercise 5: Extract and Paste Patch")
     
-    # TODO: Extract 32x32 patch from top-left corner (starting at 0,0)
     patch_size = 32
-    patch = None
+    patch = img[0:patch_size, 0:patch_size].copy()  # TODO: Extract 32x32 patch from top-left corner (starting at 0,0)
     
-    # TODO: Create a copy of the image
-    img_copy = None
+    img_copy = img.copy()  # TODO: Create a copy of the image
     
-    # TODO: Get image dimensions
+    height, width, channels = img.shape  # TODO: Get image dimensions
     
     # TODO: Generate 3 random locations and paste the patch
     # Use random.randint() and ensure patch fits within boundaries
     for i in range(3):
-        pass  # TODO: Generate random coordinates and paste
+        x = random.randint(0, width - patch_size)
+        y = random.randint(0, height - patch_size)
+        img_copy[y:y+patch_size, x:x+patch_size] = patch
     
-    # TODO: Display the result
+    cv2.imshow("Patched Image", img_copy)  # TODO: Display the result
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     print("Exercise 5 completed!\n")
+    return img_copy
 
 
 # ============================================================================
@@ -216,25 +226,37 @@ def exercise7(img):
     """
     print("Exercise 7: Border and Annotations")
     
-    # TODO: Add 20-pixel border using cv2.copyMakeBorder()
+    bordered = cv2.copyMakeBorder(img, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=(0, 0, 255))  # TODO: Add 20-pixel border using cv2.copyMakeBorder()
     # Use cv2.BORDER_CONSTANT with a color of your choice
-    bordered = None
     
-    # TODO: Get dimensions of bordered image
+    height, width, channels = bordered.shape  # TODO: Get dimensions of bordered image
     
     # TODO: Draw 5 random circles
     # Use random.randint() and cv2.circle(img, center, radius, color, thickness)
     for i in range(5):
-        pass  # TODO: Implement circle drawing
+        center_x = random.randint(20, width - 20)
+        center_y = random.randint(20, height - 20)
+        radius = random.randint(10, 40)
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        cv2.circle(bordered, (center_x, center_y), radius, color, -1)
     
     # TODO: Add 5 random text labels
     # Use random.randint() and cv2.putText(img, text, org, font, fontScale, color, thickness)
     for i in range(5):
-        pass  # TODO: Implement text drawing
+        x = random.randint(30, width - 100)
+        y = random.randint(30, height - 30)
+        text = f"Text{i+1}"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        cv2.putText(bordered, text, (x, y), font, font_scale, color, 2, cv2.LINE_AA)
     
-    # TODO: Display the result
+    cv2.imshow("Border and Annotations", bordered)  # TODO: Display the result
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     print("Exercise 7 completed!\n")
+    return bordered
 
 
 # ============================================================================
