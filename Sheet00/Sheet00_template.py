@@ -99,7 +99,6 @@ def exercise3(img):
     for y in range(height):
         for x in range(width):
             for c in range(channels):
-                new_value = img[y, x, c] + 50
                 result[y, x, c] = min(255, max(0, int(img[y, x, c]) + 50)) # Ensures that value stays within [0, 255]
     
     combined = np.hstack((img, result))  # TODO: Display original and result side by side
@@ -131,8 +130,7 @@ def exercise4(img):
     for y in range(height):
         for x in range(width):
             for c in range(channels):
-                new_value = img[y, x, c] + 50
-                result[y, x, c] = np.clip(new_value, 0, 255)
+                result[y, x, c] = min(255, max(0, int(img[y, x, c]) + 50)) # Ensures that value stays within [0, 255]
 
     end_time_loop = time.time()
     
