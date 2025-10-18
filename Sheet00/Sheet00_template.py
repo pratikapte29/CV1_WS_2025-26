@@ -100,7 +100,7 @@ def exercise3(img):
         for x in range(width):
             for c in range(channels):
                 new_value = img[y, x, c] + 50
-                result[y, x, c] = np.clip(new_value, 0, 255)
+                result[y, x, c] = min(255, max(0, int(img[y, x, c]) + 50)) # Ensures that value stays within [0, 255]
     
     combined = np.hstack((img, result))  # TODO: Display original and result side by side
     cv2.imshow("Original (Left) | Brightened (Right)", combined)
@@ -122,8 +122,18 @@ def exercise4(img):
     print("Exercise 4: Vectorized Brightness Adjustment")
     
     # TODO: Time the loop-based approach (from exercise 3)
+    
+    result = img.copy()  # Create a copy of the image
+    height, width, channels = img.shape  # Get image dimensions
+    
     start_time_loop = time.time()
-    # ... (implement or copy loop code)
+    
+    for y in range(height):
+        for x in range(width):
+            for c in range(channels):
+                new_value = img[y, x, c] + 50
+                result[y, x, c] = np.clip(new_value, 0, 255)
+
     end_time_loop = time.time()
     
     # TODO: Time the vectorized approach
