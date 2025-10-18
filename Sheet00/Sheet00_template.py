@@ -275,11 +275,11 @@ def main():
     if img is None:
         return
     exercise2(img)
-    # exercise3(img)
+    exercise3(img)
     exercise4(img)
-    # exercise5(img)
+    exercise5(img)
     exercise6(img)
-    # exercise7(img)
+    exercise7(img)
     
     print("=" * 60)
     print("All exercises completed!")
