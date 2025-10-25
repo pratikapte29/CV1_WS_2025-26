@@ -6,7 +6,18 @@ import numpy as np
 # ==============================================================================
 
 img = cv2.imread('bonn.jpg')
+
+# Visualize if needed:
+# cv2.imshow('Original Image', img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
 gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Visualize if needed:
+# cv2.imshow('Grayscale Image', gray_img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 # ==============================================================================
 # (a) Module to decompose the input kernel using SVD
@@ -96,6 +107,12 @@ def check_separability_and_approximate(u, s, vt, gray_img, K):
         # Filter the image using both kernels
         filtered_full = cv2.filter2D(gray_img, -1, K)
         filtered_approx = cv2.filter2D(gray_img, -1, K_approx)
+
+        # If needed, we can also compare visually:
+        combined = np.hstack((filtered_full, filtered_approx))
+        cv2.imshow('Filtered Images: Full Kernel (Left) | Approximated Kernel (Right)', combined)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         # Compute absolute pixel error
         diff = np.abs(filtered_full.astype(np.float32) - filtered_approx.astype(np.float32))
