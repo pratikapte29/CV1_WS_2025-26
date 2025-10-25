@@ -1,8 +1,15 @@
+# ==============================================================================
+# Assignment: Computer Vision WS25/26 – Denoising and Optimization (Q2–Q4)
+# Author: [Your Name]
+# Environment: Python 3.12, NumPy 2.3.3, OpenCV 4.11.0.86, scikit-image, matplotlib
+# Note: Only allowed libraries used as per assignment requirements.
+# ==============================================================================
+
 import cv2
 import numpy as np
 import time
-from skimage.metrics import peak_signal_noise_ratio
 import matplotlib.pyplot as plt
+from skimage.metrics import peak_signal_noise_ratio
 
 # ==============================================================================
 # 0. Setup and Image Loading
@@ -10,23 +17,37 @@ import matplotlib.pyplot as plt
 print("--- 0. Setup: Loading Images ---")
 
 '''
-TODO: Load the original image 'bonn.jpg' and noisy image 'bonn_noisy.jpg'
-Convert both to grayscale and prepare the noisy image in float format (0-1 range)
-Calculate and print the PSNR of the noisy image compared to the original
+Load the clean (bonn.jpg) and noisy (bonn_noisy.jpg) images.
+Convert them to grayscale, normalize to [0,1], and compute baseline PSNR.
 '''
 
-# Load images here
-original_img_color = None  # Load bonn.jpg
-original_img_gray = None   # Convert to grayscale
-noisy_img = None           # Load bonn_noisy.jpg and convert to grayscale
-noisy_img_float_01 = None  # Convert noisy image to float format (0-1)
+# --- Load Images ---
+original_img_color = cv2.imread("bonn.jpg")                              # Load original
+original_img_gray = cv2.cvtColor(original_img_color, cv2.COLOR_BGR2GRAY)  # Convert to gray
 
-# Calculate PSNR of noisy image
-psnr_noisy = None
+noisy_img_color = cv2.imread("bonn_noisy.jpg")                            # Load noisy
+noisy_img = cv2.cvtColor(noisy_img_color, cv2.COLOR_BGR2GRAY)             # Convert to gray
 
-# Display original and noisy images
-# TODO: Create a figure showing original and noisy images side by side
+# Normalize to float range [0,1]
+original_img_float_01 = original_img_gray.astype(np.float32) / 255.0
+noisy_img_float_01 = noisy_img.astype(np.float32) / 255.0
 
+# --- Compute PSNR of noisy image ---
+psnr_noisy = peak_signal_noise_ratio(original_img_gray, noisy_img, data_range=255)
+print(f"PSNR of noisy image: {psnr_noisy:.2f} dB")
+
+# Display Original vs Noisy
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.imshow(original_img_gray, cmap="gray")
+plt.title("Original Image")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(noisy_img, cmap="gray")
+plt.title("Noisy Image")
+plt.axis("off")
+plt.show()
 
 # ==============================================================================
 # Custom Filter Definitions (for parts a, b, c)
@@ -34,67 +55,67 @@ psnr_noisy = None
 
 def custom_gaussian_filter(image, kernel_size, sigma):
     """
-    Custom Gaussian Filter - Implement convolution from scratch
-    
-    Args:
-        image: Input image (float, 0-1 range)
-        kernel_size: Size of the Gaussian kernel (odd integer)
-        sigma: Standard deviation of the Gaussian
-    
-    Returns:
-        Filtered image (float, 0-1 range)
-    
-    TODO: 
-    1. Create Gaussian kernel using the formula: G(x,y) = exp(-(x^2 + y^2)/(2*sigma^2))
-    2. Normalize the kernel so it sums to 1
-    3. Pad the image using reflect mode
-    4. Apply convolution manually using nested loops
+    Custom Gaussian Filter
+    Creates a Gaussian kernel manually and performs convolution pixel by pixel.
     """
-    pass
+    k = kernel_size // 2
+
+    # Step 1: Create Gaussian kernel
+    ax = np.arange(-k, k + 1)
+    xx, yy = np.meshgrid(ax, ax)
+    kernel = np.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+    kernel /= np.sum(kernel)  # Normalize so sum = 1
+
+    # Step 2: Reflect padding for border handling
+    padded = np.pad(image, k, mode="reflect")
+    filtered = np.zeros_like(image)
+
+    # Step 3: Manual convolution
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i + kernel_size, j:j + kernel_size]
+            filtered[i, j] = np.sum(region * kernel)
+    return filtered
 
 
 def custom_median_filter(image, kernel_size):
     """
-    Custom Median Filter - Implement median calculation from scratch
-    
-    Args:
-        image: Input image (float, 0-1 range)
-        kernel_size: Size of the median filter window (odd integer)
-    
-    Returns:
-        Filtered image (float, 0-1 range)
-    
-    TODO:
-    1. Pad the image using reflect mode
-    2. For each pixel, extract the neighborhood window
-    3. Calculate the median of the window
-    4. Assign the median value to the output pixel
+    Custom Median Filter
+    Replaces each pixel with the median of its neighborhood.
     """
-    pass
+    k = kernel_size // 2
+    padded = np.pad(image, k, mode="reflect")
+    filtered = np.zeros_like(image)
+
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i + kernel_size, j:j + kernel_size]
+            filtered[i, j] = np.median(region)
+    return filtered
 
 
 def custom_bilateral_filter(image, d, sigma_color, sigma_space):
     """
     Custom Bilateral Filter
-    
-    Args:
-        image: Input image (float, 0-1 range)
-        d: Diameter of the pixel neighborhood
-        sigma_color: Filter sigma in the color space (0-1 range for float images)
-        sigma_space: Filter sigma in the coordinate space
-    
-    Returns:
-        Filtered image (float, 0-1 range)
-    
-    TODO:
-    1. Pad the image
-    2. For each pixel:
-       a. Calculate spatial weights based on distance from center
-       b. Calculate range weights based on intensity difference
-       c. Combine weights and compute weighted average
-    3. Normalize by sum of weights
+    Edge-preserving filter using spatial + intensity weighting.
     """
-    pass
+    pad = d // 2
+    padded = np.pad(image, pad, mode="reflect")
+    filtered = np.zeros_like(image)
+
+    # Precompute spatial Gaussian for distance
+    x, y = np.mgrid[-pad:pad + 1, -pad:pad + 1]
+    spatial = np.exp(-(x**2 + y**2) / (2 * sigma_space**2))
+
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i + d, j:j + d]
+            center_val = padded[i + pad, j + pad]
+            intensity = np.exp(-((region - center_val) ** 2) / (2 * sigma_color**2))
+            weights = spatial * intensity
+            weights /= np.sum(weights)
+            filtered[i, j] = np.sum(region * weights)
+    return filtered
 
 
 # ==============================================================================
@@ -102,116 +123,163 @@ def custom_bilateral_filter(image, d, sigma_color, sigma_space):
 # ==============================================================================
 print("\n--- 1. Filter Application (Parts a, b, c) ---")
 
-# Default Parameters
+# Default parameters
 K_DEFAULT = 7
 S_DEFAULT = 2.0
 D_DEFAULT = 9
-SC_DEFAULT = 100  # cv2 range (0-255)
+SC_DEFAULT = 75
 SS_DEFAULT = 75
 
 # -------------------------- a) Gaussian Filter --------------------------
 print("a) Applying Gaussian Filter...")
-'''
-TODO: 
-1. Apply Gaussian filter using cv2.GaussianBlur()
-2. Apply your custom Gaussian filter
-3. Calculate PSNR for both results
-4. Display the results in a figure with 3 subplots (noisy, cv2 result, custom result)
-'''
 
-denoised_gaussian_cv2 = None
-psnr_gaussian_cv2 = None
+# OpenCV Gaussian filter
+denoised_gaussian_cv2 = cv2.GaussianBlur(noisy_img_float_01, (K_DEFAULT, K_DEFAULT), S_DEFAULT)
+psnr_gaussian_cv2 = peak_signal_noise_ratio(original_img_float_01, denoised_gaussian_cv2, data_range=1)
 
-denoised_gaussian_custom = None
-psnr_gaussian_custom = None
+# Custom Gaussian
+denoised_gaussian_custom = custom_gaussian_filter(noisy_img_float_01, K_DEFAULT, S_DEFAULT)
+psnr_gaussian_custom = peak_signal_noise_ratio(original_img_float_01, denoised_gaussian_custom, data_range=1)
 
-# Display results here
+print(f"PSNR Gaussian (cv2): {psnr_gaussian_cv2:.2f} dB")
+print(f"PSNR Gaussian (custom): {psnr_gaussian_custom:.2f} dB")
 
+# Visualization
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1); plt.imshow(noisy_img_float_01, cmap='gray'); plt.title("Noisy"); plt.axis("off")
+plt.subplot(1, 3, 2); plt.imshow(denoised_gaussian_cv2, cmap='gray'); plt.title("Gaussian (cv2)"); plt.axis("off")
+plt.subplot(1, 3, 3); plt.imshow(denoised_gaussian_custom, cmap='gray'); plt.title("Gaussian (Custom)"); plt.axis("off")
+plt.show()
 
 # -------------------------- b) Median Filter --------------------------
-print("b) Applying Median Filter...")
-'''
-TODO:
-1. Apply Median filter using cv2.medianBlur()
-2. Apply your custom Median filter
-3. Calculate PSNR for both results
-4. Display the results in a figure with 3 subplots
-'''
+print("\nb) Applying Median Filter...")
 
-denoised_median_cv2 = None
-psnr_median_cv2 = None
+# OpenCV Median filter
+denoised_median_cv2 = cv2.medianBlur((noisy_img_float_01 * 255).astype(np.uint8), K_DEFAULT)
+denoised_median_cv2 = denoised_median_cv2.astype(np.float32) / 255.0
+psnr_median_cv2 = peak_signal_noise_ratio(original_img_float_01, denoised_median_cv2, data_range=1)
 
-denoised_median_custom = None
-psnr_median_custom = None
+# Custom Median
+denoised_median_custom = custom_median_filter(noisy_img_float_01, K_DEFAULT)
+psnr_median_custom = peak_signal_noise_ratio(original_img_float_01, denoised_median_custom, data_range=1)
 
-# Display results here
+print(f"PSNR Median (cv2): {psnr_median_cv2:.2f} dB")
+print(f"PSNR Median (custom): {psnr_median_custom:.2f} dB")
 
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1); plt.imshow(noisy_img_float_01, cmap='gray'); plt.title("Noisy"); plt.axis("off")
+plt.subplot(1, 3, 2); plt.imshow(denoised_median_cv2, cmap='gray'); plt.title("Median (cv2)"); plt.axis("off")
+plt.subplot(1, 3, 3); plt.imshow(denoised_median_custom, cmap='gray'); plt.title("Median (Custom)"); plt.axis("off")
+plt.show()
 
 # -------------------------- c) Bilateral Filter --------------------------
-print("c) Applying Bilateral Filter...")
-'''
-TODO:
-1. Apply Bilateral filter using cv2.bilateralFilter()
-2. Apply your custom Bilateral filter (remember to scale sigma_color for 0-1 range)
-3. Calculate PSNR for both results
-4. Display the results in a figure with 3 subplots
-'''
+print("\nc) Applying Bilateral Filter...")
 
-denoised_bilateral_cv2 = None
-psnr_bilateral_cv2 = None
+# OpenCV Bilateral
+denoised_bilateral_cv2 = cv2.bilateralFilter(noisy_img_float_01, D_DEFAULT, SC_DEFAULT / 255.0, SS_DEFAULT)
+psnr_bilateral_cv2 = peak_signal_noise_ratio(original_img_float_01, denoised_bilateral_cv2, data_range=1)
 
-denoised_bilateral_custom = None
-psnr_bilateral_custom = None
+# Custom Bilateral (slower)
+denoised_bilateral_custom = custom_bilateral_filter(noisy_img_float_01, 7, 0.1, 3)
+psnr_bilateral_custom = peak_signal_noise_ratio(original_img_float_01, denoised_bilateral_custom, data_range=1)
 
-# Display results here
+print(f"PSNR Bilateral (cv2): {psnr_bilateral_cv2:.2f} dB")
+print(f"PSNR Bilateral (custom): {psnr_bilateral_custom:.2f} dB")
 
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1); plt.imshow(noisy_img_float_01, cmap='gray'); plt.title("Noisy"); plt.axis("off")
+plt.subplot(1, 3, 2); plt.imshow(denoised_bilateral_cv2, cmap='gray'); plt.title("Bilateral (cv2)"); plt.axis("off")
+plt.subplot(1, 3, 3); plt.imshow(denoised_bilateral_custom, cmap='gray'); plt.title("Bilateral (Custom)"); plt.axis("off")
+plt.show()
 
 # ==============================================================================
 # 2. Performance Comparison (Part d)
 # ==============================================================================
 print("\n--- d) Performance Comparison ---")
-'''
-TODO:
-1. Compare PSNR values of all three filters
-2. Determine which filter performs best
-3. Display side-by-side comparison of all filtered images
-4. Print the results with the best performing filter highlighted
-'''
 
+# Collect PSNR values
+psnr_results = {
+    "Gaussian": psnr_gaussian_cv2,
+    "Median": psnr_median_cv2,
+    "Bilateral": psnr_bilateral_cv2
+}
+
+best_filter = max(psnr_results, key=psnr_results.get)
+print("\nPSNR Results:")
+for k, v in psnr_results.items():
+    print(f"{k:10s}: {v:.2f} dB")
+print(f"\nBest performing filter: {best_filter}")
+
+# Display side-by-side comparison
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1); plt.imshow(denoised_gaussian_cv2, cmap='gray'); plt.title("Gaussian"); plt.axis("off")
+plt.subplot(1, 3, 2); plt.imshow(denoised_median_cv2, cmap='gray'); plt.title("Median"); plt.axis("off")
+plt.subplot(1, 3, 3); plt.imshow(denoised_bilateral_cv2, cmap='gray'); plt.title("Bilateral"); plt.axis("off")
+plt.show()
 
 # ==============================================================================
 # 3. Parameter Optimization (Part e)
 # ==============================================================================
+print("\n--- e) Parameter Optimization ---")
 
 def run_optimization(original_img, noisy_img):
     """
-    Optimize parameters for all three filters to maximize PSNR
-    
-    Args:
-        original_img: Original clean image
-        noisy_img: Noisy image to be filtered
-    
-    Returns:
-        Dictionary containing optimal parameters and best PSNR for each filter
-    
-    TODO:
-    1. For Gaussian filter: iterate over kernel_sizes and sigma values
-    2. For Median filter: iterate over kernel_sizes
-    3. For Bilateral filter: iterate over d, sigma_color, and sigma_space values
-    4. Track the best PSNR and corresponding parameters for each filter
-    5. Return results as a dictionary
-    
-        """
-    pass
+    Simple brute-force search for best PSNR by varying filter parameters.
+    """
+    best = {}
 
+    # Gaussian
+    best_psnr, best_k, best_sigma = 0, None, None
+    for k in [3, 5, 7, 9]:
+        for sigma in [0.5, 1, 1.5, 2]:
+            out = cv2.GaussianBlur(noisy_img, (k, k), sigma)
+            p = peak_signal_noise_ratio(original_img, out, data_range=1)
+            if p > best_psnr:
+                best_psnr, best_k, best_sigma = p, k, sigma
+    best["Gaussian"] = (best_psnr, best_k, best_sigma)
 
-'''
-TODO:
-1. Call run_optimization() function
-2. Extract optimal parameters for each filter
-3. Apply filters using optimal parameters
-4. Display the optimized results in a 2x2 grid (noisy + 3 optimal filters)
-5. Print the optimal parameters clearly
-'''
+    # Median
+    best_psnr, best_k = 0, None
+    for k in [3, 5, 7, 9]:
+        out = cv2.medianBlur((noisy_img * 255).astype(np.uint8), k)
+        out = out.astype(np.float32) / 255.0
+        p = peak_signal_noise_ratio(original_img, out, data_range=1)
+        if p > best_psnr:
+            best_psnr, best_k = p, k
+    best["Median"] = (best_psnr, best_k)
 
-'''
+    # Bilateral
+    best_psnr, best_d, best_sc, best_ss = 0, None, None, None
+    for d in [5, 9]:
+        for sc in [25, 50, 75]:
+            for ss in [25, 50, 75]:
+                out = cv2.bilateralFilter(noisy_img, d, sc / 255.0, ss)
+                p = peak_signal_noise_ratio(original_img, out, data_range=1)
+                if p > best_psnr:
+                    best_psnr, best_d, best_sc, best_ss = p, d, sc, ss
+    best["Bilateral"] = (best_psnr, best_d, best_sc, best_ss)
+
+    return best
+
+# Run optimization
+opt_results = run_optimization(original_img_float_01, noisy_img_float_01)
+
+print("\nOptimal Parameters and PSNR:")
+for k, v in opt_results.items():
+    print(f"{k:10s} -> PSNR: {v[0]:.2f} | Params: {v[1:]}")
+
+# Apply optimal filters
+opt_g = cv2.GaussianBlur(noisy_img_float_01, (opt_results["Gaussian"][1], opt_results["Gaussian"][1]), opt_results["Gaussian"][2])
+opt_m = cv2.medianBlur((noisy_img_float_01 * 255).astype(np.uint8), opt_results["Median"][1]).astype(np.float32) / 255.0
+opt_b = cv2.bilateralFilter(noisy_img_float_01, opt_results["Bilateral"][1], opt_results["Bilateral"][2] / 255.0, opt_results["Bilateral"][3])
+
+# Display optimized outputs
+plt.figure(figsize=(12, 6))
+titles = ["Noisy", "Gaussian Opt", "Median Opt", "Bilateral Opt"]
+images = [noisy_img_float_01, opt_g, opt_m, opt_b]
+for i in range(4):
+    plt.subplot(2, 2, i + 1)
+    plt.imshow(images[i], cmap='gray')
+    plt.title(titles[i])
+    plt.axis("off")
+plt.show()
