@@ -1,10 +1,3 @@
-# ==============================================================================
-# Assignment: Computer Vision WS25/26 – Denoising and Optimization (Q2–Q4)
-# Author: [Your Name]
-# Environment: Python 3.12, NumPy 2.3.3, OpenCV 4.11.0.86, scikit-image, matplotlib
-# Note: Only allowed libraries used as per assignment requirements.
-# ==============================================================================
-
 import cv2
 import numpy as np
 import time
