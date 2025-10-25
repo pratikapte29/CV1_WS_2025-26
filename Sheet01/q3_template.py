@@ -39,11 +39,21 @@ def calculate_integral_image(img):
     2. Iterate through all pixels and compute integral values
     
         """
-    pass
+    
+    # Initialize integral image of zeros
+    integral_img = np.zeros((img.shape[0] + 1, img.shape[1] + 1), dtype=np.float64)  # data type float64 to avoid overflow
 
+    # Compute integral image
+    # Since image is defined as height, width, we iterate as below:
+    for h in range(1, img.shape[0] + 1):
+        for w in range(1, img.shape[1] + 1):
+            integral_img[h, w] = img[h - 1, w - 1] + integral_img[h - 1, w] \
+                                  + integral_img[h, w - 1] - integral_img[h - 1, w - 1]
+            
+    return integral_img
 
 # Calculate integral image
-integral_img = None  # Call calculate_integral_image()
+integral_img = calculate_integral_image(gray_img)  # Call calculate_integral_image()
 
 print("Integral image calculated successfully.")
 print(f"Integral image size: {integral_img.shape}")
@@ -72,7 +82,24 @@ def mean_using_integral(integral, top_left, bottom_right):
     2. Adjust indices for integral image (remember it's 1-indexed)
     3. Return Sum / number_of_pixels
     """
-    pass
+    # Extract coordinates
+    w1, h1 = top_left
+    w2, h2 = bottom_right
+
+    # Adjust for integral image:
+    w1 += 1
+    h1 += 1
+    w2 += 1
+    h2 += 1
+
+    # Calculate sum using integral image
+    sum = integral[h2, w2] - integral[h1 - 1, w2] - integral[h2, w1 - 1] + integral[h1 - 1, w1 - 1]
+
+    # Calculate number of pixels
+    num_pixels = (w2 - w1 + 1) * (h2 - h1 + 1)
+
+    # Return mean gray value of the region
+    return sum / num_pixels
 
 
 # Define region
@@ -80,7 +107,7 @@ top_left = (10, 10)
 bottom_right = (60, 80)
 
 # Calculate mean using integral image
-mean_integral = None  # Call mean_using_integral()
+mean_integral = mean_using_integral(integral_img, top_left, bottom_right)  # Call mean_using_integral()
 
 print(f"Region: Top-left {top_left}, Bottom-right {bottom_right}")
 print(f"Region size: {bottom_right[0] - top_left[0] + 1} x {bottom_right[1] - top_left[1] + 1} pixels")
@@ -110,11 +137,19 @@ def mean_by_direct_sum(img, top_left, bottom_right):
     2. Calculate and return the mean of all pixels in the region
     
       """
-    pass
+    # Extract coordinates
+    w1, h1 = top_left
+    w2, h2 = bottom_right
+
+    # Extract required region from the image:
+    region = img[h1:h2 + 1, w1:w2 + 1]
+
+    # Return the mean gray value of the region
+    return np.mean(region)
 
 
 # Calculate mean using direct summation
-mean_direct = None  # Call mean_by_direct_sum()
+mean_direct = mean_by_direct_sum(gray_img, top_left, bottom_right)  # Call mean_by_direct_sum()
 
 print(f"Mean gray value (Direct Summation Method): {mean_direct:.2f}")
 
@@ -143,8 +178,37 @@ iterations = 100
 print(f"\nBenchmarking with {iterations} iterations...\n")
 
 # TODO: Implement benchmarking code here
-time_integral = None
-time_direct = None
+
+# Benchmark integral image:
+start_time = time.perf_counter()
+for i in range(iterations):
+    mean_integral = mean_using_integral(integral_img, top_left, bottom_right)
+
+time_integral = (time.perf_counter() - start_time) / iterations
+
+# Benchmark direct summation:
+start_time = time.perf_counter()
+for i in range(iterations):
+    mean_direct = mean_by_direct_sum(gray_img, top_left, bottom_right)
+
+time_direct = (time.perf_counter() - start_time) / iterations
 
 # TODO: Display results 
+print("Method: Integral Image")
+print(f"Average execution time: {time_integral * 1e6} microseconds")
+print("Method: Direct Summation")
+print(f"Average execution time: {time_direct * 1e6} microseconds")
+
+# Verify both methods give the same result
+print(f"Results are the same: {np.isclose(mean_direct, mean_integral)}")
+
+# Performance improvement factor
+print(f"\nPerformance Improvement Factor: {time_direct / time_integral:.2f}x faster using Integral Image method.")
+
 # TODO: Print theoretical complexity explanation
+
+print("Theoretical Complexity Analysis:")
+print("Integral Image Method: O(1) - Constant time after preprocessing \ " \
+      "because we already have cumulative summation stored in the integral image.")
+print("Direct Summation Method: O(w * h) - Linear time with respect to region size \ " \
+      "because we sum each pixel in the specified region directly.")
