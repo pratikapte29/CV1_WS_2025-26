@@ -1,22 +1,23 @@
-# ==============================================================================
-# Exercise 3 – Spatial and Frequency Domain Filtering
-# Author: Danny Ronikar Franklin
-# ==============================================================================
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 
+# ------------------------------------------------------------------------------
+# Function: make_box_kernel
+# Description: Creates a normalized k×k box filter kernel.
+# ------------------------------------------------------------------------------
 def make_box_kernel(k):
-    """Create a normalized k×k box filter kernel."""
     h = np.ones((k, k), dtype=np.float64)
     h /= np.sum(h)
     return h
 
 
+# ------------------------------------------------------------------------------
+# Function: make_gauss_kernel
+# Description: Creates a normalized 2D Gaussian filter kernel of size k×k.
+# ------------------------------------------------------------------------------
 def make_gauss_kernel(k, sigma):
-    """Create a normalized 2D Gaussian filter kernel of size k×k."""
     ax = np.arange(-k // 2 + 1., k // 2 + 1.)
     xx, yy = np.meshgrid(ax, ax)
     h = np.exp(-(xx ** 2 + yy ** 2) / (2 * sigma ** 2))
@@ -24,88 +25,128 @@ def make_gauss_kernel(k, sigma):
     return h
 
 
+# ------------------------------------------------------------------------------
+# Function: conv2_same_zero
+# Description: Performs 2D spatial convolution using zero padding.
+# The output image has the same size as the input.
+# ------------------------------------------------------------------------------
 def conv2_same_zero(img, h):
-    """Perform 2D spatial convolution using zero padding."""
     kh, kw = h.shape
     pad_h, pad_w = kh // 2, kw // 2
+
+    # Pad the input image with zeros
     padded = np.pad(img, ((pad_h, pad_h), (pad_w, pad_w)),
                     mode='constant', constant_values=0)
+
     out = np.zeros_like(img)
 
+    # Perform convolution manually
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             region = padded[i:i + kh, j:j + kw]
             out[i, j] = np.sum(region * h)
+
     return out
 
 
+# ------------------------------------------------------------------------------
+# Function: freq_linear_conv
+# Description: Performs linear convolution in the frequency domain using FFT.
+# ------------------------------------------------------------------------------
 def freq_linear_conv(img, h):
-    """Perform linear convolution in the frequency domain using numpy.fft."""
     kh, kw = h.shape
+
+    # Create zero-padded kernel with same size as image
     H = np.zeros_like(img)
     H[:kh, :kw] = h
-    H = np.fft.ifftshift(H)  # shift kernel center to origin
+    H = np.fft.ifftshift(H)  # Shift kernel center to origin
 
+    # Compute Fourier transforms
     F_img = np.fft.fft2(img)
     F_h = np.fft.fft2(H)
-    F_res = F_img * F_h
 
+    # Multiply in frequency domain and inverse transform
+    F_res = F_img * F_h
     res = np.real(np.fft.ifft2(F_res))
+
     return res
 
 
+# ------------------------------------------------------------------------------
+# Function: compute_mad
+# Description: Computes Mean Absolute Difference (MAD) between two images.
+# ------------------------------------------------------------------------------
 def compute_mad(a, b):
-    """Compute Mean Absolute Difference (MAD) between two images."""
     return np.mean(np.abs(a - b))
 
 
-# ==========================================================
+# ==============================================================================
 # Main Execution
-# ==========================================================
+# ==============================================================================
+if __name__ == "__main__":
 
-# 1. Load grayscale image (make sure lena.jpg is in same folder)
-img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE).astype(np.float64) / 255.0
+    # --------------------------------------------------------------------------
+    # 1. Load grayscale image
+    # --------------------------------------------------------------------------
+    img = cv2.imread(r"E:\Bonn\Mobile Robotics\1 Semester\Computer Vsion\Exercises\Sheet02\Sheet02\data\lena.png", cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        raise FileNotFoundError("Image 'lena.jpg' not found in the working directory.")
 
-# 2. Construct 9×9 box and Gaussian kernels
-k_size = 9
-sigma = 2.0
-box_kernel = make_box_kernel(k_size)
-gauss_kernel = make_gauss_kernel(k_size, sigma)
+    img = img.astype(np.float64) / 255.0
 
-# 3. Apply both filters in spatial domain
-box_spatial = conv2_same_zero(img, box_kernel)
-gauss_spatial = conv2_same_zero(img, gauss_kernel)
+    # --------------------------------------------------------------------------
+    # 2. Construct 9×9 box and Gaussian kernels
+    # --------------------------------------------------------------------------
+    k_size = 9
+    sigma = 2.0
+    box_kernel = make_box_kernel(k_size)
+    gauss_kernel = make_gauss_kernel(k_size, sigma)
 
-# 4. Apply both filters in frequency domain
-box_freq = freq_linear_conv(img, box_kernel)
-gauss_freq = freq_linear_conv(img, gauss_kernel)
+    # --------------------------------------------------------------------------
+    # 3. Apply both filters in spatial domain
+    # --------------------------------------------------------------------------
+    box_spatial = conv2_same_zero(img, box_kernel)
+    gauss_spatial = conv2_same_zero(img, gauss_kernel)
 
-# 5. Compute MAD
-mad_box = compute_mad(box_spatial, box_freq)
-mad_gauss = compute_mad(gauss_spatial, gauss_freq)
+    # --------------------------------------------------------------------------
+    # 4. Apply both filters in frequency domain
+    # --------------------------------------------------------------------------
+    box_freq = freq_linear_conv(img, box_kernel)
+    gauss_freq = freq_linear_conv(img, gauss_kernel)
 
-print(f"MAD (Box Filter): {mad_box:.10e}")
-print(f"MAD (Gaussian Filter): {mad_gauss:.10e}")
+    # --------------------------------------------------------------------------
+    # 5. Compute Mean Absolute Difference (MAD)
+    # --------------------------------------------------------------------------
+    mad_box = compute_mad(box_spatial, box_freq)
+    mad_gauss = compute_mad(gauss_spatial, gauss_freq)
 
-# 6. Visualization
-titles = [
-    "Original Image",
-    "Box Filter (Spatial)",
-    "Box Filter (Frequency)",
-    "Gaussian Filter (Spatial)",
-    "Gaussian Filter (Frequency)"
-]
-images = [img, box_spatial, box_freq, gauss_spatial, gauss_freq]
+    print(f"MAD (Box Filter): {mad_box:.10e}")
+    print(f"MAD (Gaussian Filter): {mad_gauss:.10e}")
 
-plt.figure(figsize=(12, 8))
-for i, (title, im) in enumerate(zip(titles, images)):
-    plt.subplot(2, 3, i + 1)
-    plt.imshow(im, cmap="gray")
-    plt.title(title)
-    plt.axis("off")
-plt.tight_layout()
-plt.show()
+    # --------------------------------------------------------------------------
+    # 6. Visualization
+    # --------------------------------------------------------------------------
+    titles = [
+        "Original Image",
+        "Box Filter (Spatial)",
+        "Box Filter (Frequency)",
+        "Gaussian Filter (Spatial)",
+        "Gaussian Filter (Frequency)"
+    ]
+    images = [img, box_spatial, box_freq, gauss_spatial, gauss_freq]
 
-# 7. Verify requirement
-assert mad_box < 1e-7 and mad_gauss < 1e-7, "❌ MAD requirement not met!"
-print("✅ Spatial and Frequency filtering results match (MAD < 1×10⁻⁷)")
+    plt.figure(figsize=(12, 8))
+    for i, (title, im) in enumerate(zip(titles, images)):
+        plt.subplot(2, 3, i + 1)
+        plt.imshow(im, cmap="gray")
+        plt.title(title)
+        plt.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    # --------------------------------------------------------------------------
+    # 7. Verification of equivalence between spatial and frequency results
+    # --------------------------------------------------------------------------
+    assert mad_box < 1e-7 and mad_gauss < 1e-7, "MAD requirement not met."
+    print("Spatial and frequency domain filtering results match (MAD < 1×10⁻⁷).")
