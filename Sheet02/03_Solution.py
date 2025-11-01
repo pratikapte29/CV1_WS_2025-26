@@ -5,76 +5,81 @@ import matplotlib.pyplot as plt
 
 # ------------------------------------------------------------------------------
 # Function: make_box_kernel
-# Description: Creates a normalized k×k box filter kernel.
+# Purpose : Create a normalized k×k box filter kernel.
 # ------------------------------------------------------------------------------
 def make_box_kernel(k):
-    h = np.ones((k, k), dtype=np.float64)
-    h /= np.sum(h)
-    return h
+    kernel = np.ones((k, k), dtype=np.float64)
+    kernel /= np.sum(kernel)
+    return kernel
 
 
 # ------------------------------------------------------------------------------
 # Function: make_gauss_kernel
-# Description: Creates a normalized 2D Gaussian filter kernel of size k×k.
+# Purpose : Create a normalized 2D Gaussian filter kernel of size k×k.
 # ------------------------------------------------------------------------------
 def make_gauss_kernel(k, sigma):
     ax = np.arange(-k // 2 + 1., k // 2 + 1.)
     xx, yy = np.meshgrid(ax, ax)
-    h = np.exp(-(xx ** 2 + yy ** 2) / (2 * sigma ** 2))
-    h /= np.sum(h)
-    return h
+    kernel = np.exp(-(xx ** 2 + yy ** 2) / (2 * sigma ** 2))
+    kernel /= np.sum(kernel)
+    return kernel
 
 
 # ------------------------------------------------------------------------------
 # Function: conv2_same_zero
-# Description: Performs 2D spatial convolution using zero padding.
-# The output image has the same size as the input.
+# Purpose : Perform 2D convolution with zero padding (same output size).
 # ------------------------------------------------------------------------------
-def conv2_same_zero(img, h):
-    kh, kw = h.shape
+def conv2_same_zero(img, kernel):
+    kh, kw = kernel.shape
     pad_h, pad_w = kh // 2, kw // 2
 
-    # Pad the input image with zeros
+    # Zero padding
     padded = np.pad(img, ((pad_h, pad_h), (pad_w, pad_w)),
                     mode='constant', constant_values=0)
 
-    out = np.zeros_like(img)
+    # Convolution output
+    output = np.zeros_like(img)
 
-    # Perform convolution manually
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             region = padded[i:i + kh, j:j + kw]
-            out[i, j] = np.sum(region * h)
+            output[i, j] = np.sum(region * kernel)
 
-    return out
+    return output
 
 
 # ------------------------------------------------------------------------------
 # Function: freq_linear_conv
-# Description: Performs linear convolution in the frequency domain using FFT.
+# Purpose : Perform *linear* convolution in the frequency domain using FFT.
 # ------------------------------------------------------------------------------
-def freq_linear_conv(img, h):
-    kh, kw = h.shape
+def freq_linear_conv(img, kernel):
+    H, W = img.shape
+    kh, kw = kernel.shape
 
-    # Create zero-padded kernel with same size as image
-    H = np.zeros_like(img)
-    H[:kh, :kw] = h
-    H = np.fft.ifftshift(H)  # Shift kernel center to origin
+    # Linear convolution requires padding to (H + kh - 1, W + kw - 1)
+    pad_h, pad_w = H + kh - 1, W + kw - 1
 
-    # Compute Fourier transforms
-    F_img = np.fft.fft2(img)
-    F_h = np.fft.fft2(H)
+    # Zero-pad image and kernel to common size
+    F_img = np.fft.fft2(img, s=(pad_h, pad_w))
+    F_kernel = np.fft.fft2(kernel, s=(pad_h, pad_w))
 
-    # Multiply in frequency domain and inverse transform
-    F_res = F_img * F_h
-    res = np.real(np.fft.ifft2(F_res))
+    # Multiply in frequency domain
+    F_res = F_img * F_kernel
 
-    return res
+    # Inverse FFT and take real part
+    conv_result = np.real(np.fft.ifft2(F_res))
+
+    # Crop center region to original image size
+    start_h = kh // 2
+    start_w = kw // 2
+    result = conv_result[start_h:start_h + H, start_w:start_w + W]
+
+    return result
 
 
 # ------------------------------------------------------------------------------
 # Function: compute_mad
-# Description: Computes Mean Absolute Difference (MAD) between two images.
+# Purpose : Compute the Mean Absolute Difference (MAD) between two arrays.
 # ------------------------------------------------------------------------------
 def compute_mad(a, b):
     return np.mean(np.abs(a - b))
@@ -85,47 +90,35 @@ def compute_mad(a, b):
 # ==============================================================================
 if __name__ == "__main__":
 
-    # --------------------------------------------------------------------------
     # 1. Load grayscale image
-    # --------------------------------------------------------------------------
     img = cv2.imread("lena.png", cv2.IMREAD_GRAYSCALE)
     if img is None:
-        raise FileNotFoundError("Image 'lena.jpg' not found in the working directory.")
+        raise FileNotFoundError("Image 'lena.png' not found in the working directory.")
 
     img = img.astype(np.float64) / 255.0
 
-    # --------------------------------------------------------------------------
     # 2. Construct 9×9 box and Gaussian kernels
-    # --------------------------------------------------------------------------
     k_size = 9
     sigma = 2.0
     box_kernel = make_box_kernel(k_size)
     gauss_kernel = make_gauss_kernel(k_size, sigma)
 
-    # --------------------------------------------------------------------------
-    # 3. Apply both filters in spatial domain
-    # --------------------------------------------------------------------------
+    # 3. Apply filters in spatial domain
     box_spatial = conv2_same_zero(img, box_kernel)
     gauss_spatial = conv2_same_zero(img, gauss_kernel)
 
-    # --------------------------------------------------------------------------
-    # 4. Apply both filters in frequency domain
-    # --------------------------------------------------------------------------
+    # 4. Apply filters in frequency domain
     box_freq = freq_linear_conv(img, box_kernel)
     gauss_freq = freq_linear_conv(img, gauss_kernel)
 
-    # --------------------------------------------------------------------------
     # 5. Compute Mean Absolute Difference (MAD)
-    # --------------------------------------------------------------------------
     mad_box = compute_mad(box_spatial, box_freq)
     mad_gauss = compute_mad(gauss_spatial, gauss_freq)
 
-    print(f"MAD (Box Filter): {mad_box:.10e}")
+    print(f"MAD (Box Filter):     {mad_box:.10e}")
     print(f"MAD (Gaussian Filter): {mad_gauss:.10e}")
 
-    # --------------------------------------------------------------------------
     # 6. Visualization
-    # --------------------------------------------------------------------------
     titles = [
         "Original Image",
         "Box Filter (Spatial)",
@@ -145,8 +138,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    # --------------------------------------------------------------------------
     # 7. Verification of equivalence between spatial and frequency results
-    # --------------------------------------------------------------------------
-    assert mad_box < 1e-7 and mad_gauss < 1e-7, "MAD requirement not met."
+    if mad_box >= 1e-7 or mad_gauss >= 1e-7:
+        raise AssertionError("MAD requirement not met.")
     print("Spatial and frequency domain filtering results match (MAD < 1×10⁻⁷).")
