@@ -75,8 +75,8 @@ def compute_mae(map_a, map_b):
 if __name__ == "__main__":
 
     # 1. Load the rectified stereo image pair
-    left = cv2.imread("left.jpg", cv2.IMREAD_GRAYSCALE)
-    right = cv2.imread("right.jpg", cv2.IMREAD_GRAYSCALE)
+    left = cv2.imread("data/left.jpg", cv2.IMREAD_GRAYSCALE)
+    right = cv2.imread("data/right.jpg", cv2.IMREAD_GRAYSCALE)
 
     if left is None or right is None:
         raise FileNotFoundError("Required images 'left.png' and/or 'right.png' not found.")

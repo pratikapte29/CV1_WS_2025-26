@@ -91,7 +91,7 @@ def compute_mad(a, b):
 if __name__ == "__main__":
 
     # 1. Load grayscale image
-    img = cv2.imread("lena.png", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("data/lena.png", cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise FileNotFoundError("Image 'lena.png' not found in the working directory.")
 

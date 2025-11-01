@@ -84,30 +84,20 @@ def double_threshold(nms, low_ratio=0.05, high_ratio=0.15):
 def hysteresis(edge_map, weak, strong):
     H, W = edge_map.shape
     res = edge_map.copy()
-    changed = True
-    
-    while changed:
-        changed = False
-        for i in range(1, H-1):
-            for j in range(1, W-1):
-                if res[i,j] == weak:
-                    if ((res[i+1, j-1] == strong) or (res[i+1, j] == strong) or 
-                        (res[i+1, j+1] == strong) or (res[i, j-1] == strong) or
-                        (res[i, j+1] == strong) or (res[i-1, j-1] == strong) or
-                        (res[i-1, j] == strong) or (res[i-1, j+1] == strong)):
-                        res[i,j] = strong
-                        changed = True
-                    else:
-                        res[i,j] = 0
+    for i in range(1, H-1):
+        for j in range(1, W-1):
+            if res[i,j] == weak:
+                if np.any(res[i-1:i+2, j-1:j+2] == strong):
+                    res[i,j] = strong
+                else:
+                    res[i,j] = 0
     res[res != strong] = 0
     return res
 
 
-
 def compute_metrics(manual_edges, cv_edges):
-    manual_bin = (manual_edges > 0).astype(np.uint8)
-    cv_bin = (cv_edges > 0).astype(np.uint8)
-    
+    manual_bin = (manual_edges > 0).astype(np.float32)
+    cv_bin = (cv_edges > 0).astype(np.float32)
     mad = np.mean(np.abs(manual_bin - cv_bin))
     
     tp = np.sum((manual_bin==1) & (cv_bin==1))
@@ -134,10 +124,10 @@ def compute_metrics(manual_edges, cv_edges):
 
 img = cv2.imread('data/bonn.jpg', cv2.IMREAD_GRAYSCALE)
 
-smoothed = gaussian_smoothing(img, sigma=0.5)
+smoothed = gaussian_smoothing(img, sigma=0.6)
 mag, ang = compute_gradients(smoothed)
 nms = nonmax_suppression(mag, ang)
-dt, weak, strong = double_threshold(nms, low_ratio=0.05, high_ratio=0.15)
+dt, weak, strong = double_threshold(nms, low_ratio=0.03, high_ratio=0.25)
 edges_manual = hysteresis(dt, weak, strong)
 
 edges_cv = cv2.Canny(img, 100, 200)
