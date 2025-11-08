@@ -123,7 +123,7 @@ def main():
     axes[0, 1].axis("off")
 
     # 3. Distance transform
-    axes[1, 0].imshow(chamfer_dt, cmap='gray')
+    axes[1, 0].imshow(chamfer_dt / chamfer_dt.max() * 255, cmap='gray')
     axes[1, 0].set_title("Chamfer Distance Transform")
     axes[1, 0].axis("off")
 
