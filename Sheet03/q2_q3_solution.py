@@ -40,6 +40,17 @@ def myHoughCircles(edges, min_radius, max_radius, threshold, min_dist, r_ssz, th
     accumulator = np.zeros((num_radii, h, w), dtype=np.float32)
 
     # Voting in the Hough accumulator
+
+    '''
+    Voting process:
+    For every edge pixel, we assume it lies on the circumference of
+    potential circles with different radii. For each radius, we compute
+    all possible center coordinates (a, b) using:
+        a = x - r*cos(theta)
+        b = y - r*sin(theta)
+    Each valid (a, b, r) is incremented in the accumulator.
+    '''
+
     for i in range(edges_points.shape[1]):
         y_edge = edges_points[0, i]
         x_edge = edges_points[1, i]
@@ -73,6 +84,7 @@ def myHoughCircles(edges, min_radius, max_radius, threshold, min_dist, r_ssz, th
 
     return detected_circles, accumulator
 
+
 def myMeanShift(accumulator, bandwidth, threshold=None):
     """
     Find peaks in Hough accumulator using mean shift.
@@ -86,10 +98,45 @@ def myMeanShift(accumulator, bandwidth, threshold=None):
         peaks: List of (x, y, r_idx, value) tuples
     """
     n_r, h, w = accumulator.shape
+
+    # If no threshold provided, use half of the max accumulator value
+    if threshold is None:
+        threshold = 0.5 * np.max(accumulator)
+
+    # Collect all candidate points above threshold
+    candidates = np.argwhere(accumulator > threshold)
+    values = accumulator[accumulator > threshold]
+
+    # Combine coordinates with their accumulator votes
+    points = np.hstack((candidates, values[:, None]))  # shape: (N, 4)
+
+    '''
+    Each candidate point is iteratively shifted towards the mean position
+    of its neighbors within a sphere of given bandwidth. This converges
+    to a local maximum of the density (the mode).
+    '''
+    shifted_points = points[:, :3].astype(np.float64)
+
+    for it in range(10):
+        for i, p in enumerate(shifted_points):
+            distances = np.linalg.norm(shifted_points - p, axis=1)
+            neighbors = shifted_points[distances < bandwidth]
+
+            if len(neighbors) > 0:
+                shifted_points[i] = np.mean(neighbors, axis=0)
+
+    '''
+    Merge close-by points (modes) to avoid duplicates.
+    '''
+    peaks = []
+    for i, p in enumerate(shifted_points):
+        if not any(np.linalg.norm(p - q[:3]) < bandwidth/2 for q in peaks):
+            r_i, y, x = p.astype(int)
+            value = accumulator[r_i, y, x]
+            peaks.append((x, y, r_i, value))
+
+    return peaks
     
-    # TODO
-    
-    # return peaks
 
 def main():
     
@@ -119,46 +166,52 @@ def main():
 
     # Detect circles - parameters tuned for coins image
     print("\nDetecting circles...")
-    min_radius = 10
-    max_radius = 30
-    threshold = 15
+    min_radius = 20
+    max_radius = 60
+    threshold = 120
     min_dist = 20
-    r_ssz = 2
+    r_ssz = 1
     theta_ssz = 5
 
     # Detect circles
     detected_circles, accumulator = myHoughCircles(edges, min_radius, max_radius, threshold, min_dist, r_ssz, theta_ssz)
 
     # Visualize detected circles
-    for (x_c, y_c, r, v) in detected_circles:
-        cv2.circle(img, (x_c, y_c), r, (0, 255, 0), 2)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    ax.set_title("Detected Circles (Hough Transform)")
 
-    # Visualize accumulator slices
-    for r_idx, r in enumerate(np.arange(10, 31, 2)):
-        plt.subplot(3, 4, r_idx + 1)
-        plt.imshow(accumulator[r_idx], cmap='hot', interpolation='nearest')
-        plt.title(f"Radius: {r}")
-        plt.axis('off')
-    plt.tight_layout()
+    for (x, y, r, v) in detected_circles:
+        circ = Circle((x, y), r, color='lime', fill=False, linewidth=2)
+        ax.add_patch(circ)
+        ax.plot(x, y, 'r.', markersize=5)
+
     plt.show()
 
-    # Visualize peak radius
-    if detected_circles:
-        peak_radius = max(detected_circles, key=lambda x: x[3])[2]
-        print(f"Peak radius: {peak_radius}")
+    # Visualize accumulator slices for some radii
+    n_r, h, w = accumulator.shape
+    plt.figure(figsize=(12, 4))
+    for i, r in enumerate(range(min_radius, min_radius + 3)):
+        plt.subplot(1, 3, i+1)
+        plt.imshow(accumulator[i, :, :], cmap='hot')
+        plt.title(f'Accumulator slice r={r}')
+        plt.axis('off')
+    plt.show()
 
     # Visualize the accumulator slice at the radius with maximum votes
-    peak_r_idx = np.where(np.arange(min_radius, max_radius + 1, r_ssz) == peak_radius)[0][0]
-    plt.figure()
-    plt.imshow(accumulator[peak_r_idx], cmap='hot')
-    plt.title(f"Accumulator Slice at Peak Radius = {peak_radius}")
+    max_r_idx = np.argmax(np.sum(accumulator, axis=(1, 2)))
+    plt.imshow(accumulator[max_r_idx, :, :], cmap='hot')
+    plt.title(f"Accumulator slice with max votes (r={min_radius + max_r_idx})")
     plt.axis('off')
     plt.show()
-    
+
+    # Analysis of parameters
     print("\n" + "=" * 70)
     print("Parameter Analysis:")
-    print("  - Canny thresholds affect edge quality and thus detection")
-    # ...more analysis can be added here
+    print(" - Higher Canny thresholds = fewer edges, fewer detections.")
+    print(" - Lower Canny thresholds = more noise, false detections.")
+    print(" - Increasing theta step = faster but less accurate.")
+    print(" - Reducing radius range = faster, but may miss larger coins.")
     print("=" * 70)
     print("Task 2 complete!")
     print("=" * 70)
@@ -170,16 +223,31 @@ def main():
     print("=" * 70)
 
     print("Applying mean shift to find peaks...")
-    # peaks = myMeanShift # TODO
+    bandwidth = 25
+    peaks = myMeanShift(accumulator, bandwidth)
     
     # Visualize corresponding circles on original image    
-    # TODO
-    
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    ax.set_title(f"Circles after Mean Shift (bandwidth={bandwidth})")
+
+    for (x, y, r_i, val) in peaks:
+        radius = min_radius + r_i
+        circ = Circle((x, y), radius, color='yellow', fill=False, linewidth=2)
+        ax.add_patch(circ)
+        ax.plot(x, y, 'r.', markersize=5)
+
+    plt.show()
+
+    # Bandwidth parameter analysis
     print("\n" + "=" * 70)
     print("Bandwidth Parameter Analysis:")
-    # ...more analysis can be added here
+    print(" - Small bandwidth → detects many small noisy peaks.")
+    print(" - Medium bandwidth (~25) → good clustering, clean results.")
+    print(" - Large bandwidth → merges close peaks, might miss smaller circles.")
     print("=" * 70)
     print("Task 3 complete!")
+    print("=" * 70)
     
 
 if __name__ == "__main__":
