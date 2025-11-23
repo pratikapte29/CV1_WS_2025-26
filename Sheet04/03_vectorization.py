@@ -129,7 +129,6 @@ img = cv2.imread('data/img_mosaic.tif')
 img = cv2.resize(img, (refined_mask.shape[1], refined_mask.shape[0]))
 
 # Vectorize
-print("Vectorizing buildings...")
 polygons = vectorize_buildings_90deg(refined_mask, min_area=500)
 
 # Plot

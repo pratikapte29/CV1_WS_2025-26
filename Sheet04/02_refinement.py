@@ -24,6 +24,7 @@ def compute_edge_indicator(image, sigma=2.0):
     g = 1.0 / (1.0 + grad_mag / grad_mag.max())
     return g
 
+
 def evolve_level_set(phi, g, iterations=50, dt=0.5):
     """
     Evolve level set using gradient descent
@@ -39,12 +40,10 @@ def evolve_level_set(phi, g, iterations=50, dt=0.5):
         
         # Update phi
         phi = phi + dt * g * curvature
-        
-        if it % 10 == 0:
-            print(f"Iteration {it}/{iterations}", end='\r')
     
     print()
     return phi
+
 
 def refine_with_level_set(image, initial_mask, iterations=100, dt=0.5):
     """Refine using level set method"""
@@ -65,13 +64,14 @@ def refine_with_level_set(image, initial_mask, iterations=100, dt=0.5):
     
     return refined_mask
 
+
 # Load
 img = cv2.imread('data/img_mosaic.tif')
 img = cv2.resize(img, (900, 600))
 initial_mask = cv2.imread('data/initial_segmentation.tif', cv2.IMREAD_GRAYSCALE)
 initial_mask = cv2.resize(initial_mask, (900, 600))
 
-print("Refining with level set...")
+print("Refining")
 refined_mask = refine_with_level_set(img, initial_mask, iterations=10, dt=0.3)
 
 # Post-processing
@@ -91,7 +91,7 @@ refined_mask = refined_mask | holes
 gt = cv2.imread('data/img_mosaic_label.tif', cv2.IMREAD_GRAYSCALE)
 gt = cv2.resize(gt, (900, 600))
 iou = np.logical_and(refined_mask > 0, gt > 0).sum() / np.logical_or(refined_mask > 0, gt > 0).sum()
-print(f"IoU: {iou:.4f} ({iou*100:.2f}%)")
+print(f"IoU: {iou:.4f} - {iou*100:.2f}%")
 
 # Save
 cv2.imwrite('data/img_mosaic_refined.tif', refined_mask)
