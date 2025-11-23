@@ -18,6 +18,7 @@ def compute_edge_indicator(image, sigma=2.0):
     
     Gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
     Gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+
     grad_mag = Gx**2 + Gy**2
     
     g = 1.0 / (1.0 + grad_mag / grad_mag.max())
@@ -57,11 +58,9 @@ def refine_with_level_set(image, initial_mask, iterations=100, dt=0.5):
     
     # Smooth initial phi
     phi = cv2.GaussianBlur(phi, (5, 5), 2.0)
-    
-    # Evolve
     phi = evolve_level_set(phi, g, iterations, dt)
     
-    # Extract mask (where phi < 0)
+    # Create mask for where phi < 0
     refined_mask = np.where(phi < 0, 255, 0).astype(np.uint8)
     
     return refined_mask

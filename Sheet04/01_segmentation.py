@@ -52,7 +52,7 @@ color_radius = 30
 # Apply mean-shift
 segmented = cv2.pyrMeanShiftFiltering(img, spatial_radius, color_radius)
 
-# 4. Compute difference to identify buildings
+# Compute difference to identify buildings
 diff = nir.astype(np.float32) - red.astype(np.float32) 
 # i've used float32 to avoid overflow issues just in case
 
