@@ -25,7 +25,7 @@ def compute_edge_indicator(image, sigma=2.0):
     return g
 
 
-def evolve_level_set(phi, g, iterations=50, dt=0.5):
+def evolve_level_set(phi, g, iterations, dt):
     """
     Evolve level set using gradient descent
     """
@@ -45,7 +45,7 @@ def evolve_level_set(phi, g, iterations=50, dt=0.5):
     return phi
 
 
-def refine_with_level_set(image, initial_mask, iterations=100, dt=0.5):
+def refine_with_level_set(image, initial_mask, iterations, dt):
     """Refine using level set method"""
     
     # Edge indicator
@@ -72,7 +72,7 @@ initial_mask = cv2.imread('data/initial_segmentation.tif', cv2.IMREAD_GRAYSCALE)
 initial_mask = cv2.resize(initial_mask, (900, 600))
 
 print("Refining")
-refined_mask = refine_with_level_set(img, initial_mask, iterations=10, dt=0.3)
+refined_mask = refine_with_level_set(img, initial_mask, iterations=10, dt=0.01)
 
 # Post-processing
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
