@@ -85,4 +85,4 @@ plt.imshow(final_mask, cmap='gray')
 plt.title('Building Mask')
 plt.show()
 
-cv2.imwrite('data/initial_segmentation.tif', final_mask)
+cv2.imwrite('initial_segmentation.tif', final_mask)

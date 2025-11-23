@@ -1,25 +1,15 @@
-# import numpy as np
-# import cv2
-# import skimage
-# import matplotlib
-# import math
-# import matplotlib.pyplot as plt
-
-# np.set_printoptions(suppress=True)
-
-# # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-# # TODO your implementation
-
-# img = cv2.imread('data/initial_segmentation.tif', 0)
-# cv2.imshow('Initial Segmentation', img)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
-
-
 import numpy as np
 import cv2
+import skimage
+import matplotlib
+import math
 import matplotlib.pyplot as plt
+
+np.set_printoptions(suppress=True)
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# TODO your implementation
 
 def compute_edge_indicator(image, sigma=2.0):
     """stops contour at edges"""
