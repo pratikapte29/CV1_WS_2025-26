@@ -105,7 +105,7 @@ iou = np.logical_and(refined_mask > 0, gt > 0).sum() / np.logical_or(refined_mas
 print(f"IoU: {iou:.4f} ({iou*100:.2f}%)")
 
 # Save
-cv2.imwrite('data/img_mosaic_pred.tif', refined_mask)
+cv2.imwrite('data/img_mosaic_refined.tif', refined_mask)
 
 # Visualize
 plt.figure(figsize=(15, 5))
