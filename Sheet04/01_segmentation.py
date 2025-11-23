@@ -47,27 +47,30 @@ that looked like the most promising way to go about it
 """
 
 spatial_radius = 10
-color_radius = 20
+color_radius = 30
 
 # Apply mean-shift
 segmented = cv2.pyrMeanShiftFiltering(img, spatial_radius, color_radius)
 
 # 4. Compute difference to identify buildings
-diff = nir_blur.astype(np.float32) - red_blur.astype(np.float32)
+diff = nir.astype(np.float32) - red.astype(np.float32) 
+# i've used float32 to avoid overflow issues just in case
 
 diff_uint8 = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 _, building_mask = cv2.threshold(diff_uint8, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
 
 # Morphological operations to clean up the mask
-kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 building_mask = cv2.morphologyEx(building_mask, cv2.MORPH_OPEN, kernel)
 building_mask = cv2.morphologyEx(building_mask, cv2.MORPH_CLOSE, kernel)
 
 num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(building_mask, connectivity=8)
 final_mask = np.zeros_like(building_mask)
 for i in range(1, num_labels):
-    if 100 < stats[i, cv2.CC_STAT_AREA] < 10000:
+    # some houses were not getting covered initially,
+    # changing up the area threshold made that work
+    if 100 < stats[i, cv2.CC_STAT_AREA] < 15000:
         final_mask[labels == i] = 255
 
 plt.figure(figsize=(15, 5))
@@ -82,4 +85,4 @@ plt.imshow(final_mask, cmap='gray')
 plt.title('Building Mask')
 plt.show()
 
-cv2.imwrite('initial_segmentation.tif', final_mask)
+cv2.imwrite('data/initial_segmentation.tif', final_mask)
