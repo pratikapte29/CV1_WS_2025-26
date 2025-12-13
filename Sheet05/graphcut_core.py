@@ -52,13 +52,13 @@ class GraphCutCore:
         fg_pixels = self.image[self.scribbles == 1]
         bg_pixels = self.image[self.scribbles == 2]
 
-        hist_fg = np.histogramdd(
+        hist_fg, _ = np.histogramdd(
             fg_pixels,
             bins=[bins, bins, bins],
             range=[[0, 256], [0, 256], [0, 256]]
         )
 
-        hist_bg = np.histogramdd(
+        hist_bg, _ = np.histogramdd(
             bg_pixels,
             bins=[bins, bins, bins],
             range=[[0, 256], [0, 256], [0, 256]]
@@ -132,7 +132,7 @@ class GraphCutCore:
         else:
             pixels = self.image.reshape(-1, 3)
 
-            bin_indices = (pixels * self.hist_bins / 256.0).astype(int)
+            bin_indices = (pixels.astype(float) / 256.0 * self.hist_bins).astype(int)
             bin_indices = np.clip(bin_indices, 0, self.hist_bins - 1)
 
             prob_fg = self.fg_model[
@@ -300,21 +300,22 @@ os.makedirs(output_dir, exist_ok=True)
 # List all images in the directory
 image_files = [f for f in os.listdir(image_dir) if f.endswith(".jpg")]
 
-def run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True):
+def run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True, skip_first_n=0):
     
     # counter to skip first few images while tuning
-    # c = 0
+    c = 0
 
     # to calculate average iou over all images 
     # this is only if n_components is kept constant for all images
+    # because some outputs are better with diff n, here, averages are slightly lower
     sum = 0
 
     for img_file in image_files:
         print(f"Processing {img_file}...")
         # skip first few while tuning for specific images - just for ease
-        # if c < 5: 
-        #     c += 1
-        #     continue
+        if c < skip_first_n: 
+            c += 1
+            continue
 
         # Paths
         img_path = os.path.join(image_dir, img_file)
@@ -336,7 +337,7 @@ def run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir,
             "BG pixels:", np.sum(scribble_mask == 2))
         
         # Run segmentation
-        pred_mask = gc.graph_cut(use_gmm=True, 
+        pred_mask = gc.graph_cut(use_gmm=use_gmm, 
                                 beta=tuning_params[image_files.index(img_file)][0], 
                                 lam=tuning_params[image_files.index(img_file)][1])
         
@@ -395,3 +396,16 @@ run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use
 
 
 """___________________________HISTOGRAM METHOD___________________________"""
+
+# below are in case of histogram
+
+tuning_params = [
+    [0.001, 180],  # bike - IOU = 0.87
+    [0.003, 90],   # aero - IOU = 0.58 
+    [0.001, 120],   # person7 - IOU = 0.53 
+    [0.007, 100],  # 208001 - IOU = 0.80 
+    [0.009, 90],   # scissors - IOU = 0.85 
+    [0.035, 150],   # 106024 - IOU = 0.45 
+]
+
+run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=False)
