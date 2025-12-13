@@ -75,7 +75,7 @@ class GraphCutCore:
         self.bg_model = hist_bg
         self.hist_bins = bins
 
-    def build_color_models_gmm(self, n_components=5):
+    def build_color_models_gmm(self, n_components=3):
         """_summary_
 
         Args:
@@ -157,7 +157,7 @@ class GraphCutCore:
 
         return cost_bg, cost_fg
     
-    def compute_pairwise_weight(self, p, q, beta=0.01, lam=50):
+    def compute_pairwise_weight(self, p, q, beta=0.005, lam=100):
         """
         Compute pairwise edge weight between two pixels.
 
@@ -173,7 +173,7 @@ class GraphCutCore:
         dist2 = np.sum(diff * diff)
         return lam * np.exp(-beta * dist2)
 
-    def construct_graph(self, cost_bg, cost_fg):
+    def construct_graph(self, cost_bg, cost_fg, beta, lam):
         """
         Build the graph for max-flow/min-cut.
 
@@ -211,18 +211,18 @@ class GraphCutCore:
                 if i + 1 < H:
                     q = (i + 1, j)
                     q_idx = node_index(i + 1, j)
-                    w = self.compute_pairwise_weight(p, q)
+                    w = self.compute_pairwise_weight(p, q, beta, lam)
                     graph.add_edge(node_ids[p_idx], node_ids[q_idx], w, w)
 
                 if j + 1 < W:
                     q = (i, j + 1)
                     q_idx = node_index(i, j + 1)
-                    w = self.compute_pairwise_weight(p, q)
+                    w = self.compute_pairwise_weight(p, q, beta, lam)
                     graph.add_edge(node_ids[p_idx], node_ids[q_idx], w, w)
 
         return graph, node_ids
 
-    def graph_cut(self, use_gmm=False):
+    def graph_cut(self, use_gmm=False, beta=0.005, lam=100):
         """
         Run graph cut segmentation.
 
@@ -242,7 +242,7 @@ class GraphCutCore:
         cost_bg, cost_fg = self.compute_unary_costs(use_gmm=use_gmm)
 
         # 3. Build graph
-        graph, node_ids = self.construct_graph(cost_bg, cost_fg)
+        graph, node_ids = self.construct_graph(cost_bg, cost_fg, beta, lam)
 
         # 4. Max-flow
         graph.maxflow()
@@ -285,50 +285,113 @@ def compute_iou(pred, gt):
     return intersection / union
 
 
-# Load data
-image = cv2.imread("dataset/images/scissors.jpg")
-scribble_img = cv2.imread("dataset/images-labels/scissors-anno.png")
-gt_mask = cv2.imread("dataset/images-gt/scissors.png", 0)
-gt_mask = (gt_mask > 0).astype(np.uint8)
+"""
+BELOW IS THE LOOP TO RUN GRAPH CUT ON ALL OF THE IMAGES IN THE DIRECTORY
+"""
 
-# Initialize
-gc = GraphCutCore(image, None)
-scribble_mask = gc.load_scribbles("dataset/images-labels/scissors-anno.png")
-gc.scribbles = scribble_mask
-
-# debugging the labelling
-print("Scribbles loaded. FG pixels:", np.sum(scribble_mask == 1), "BG pixels:", np.sum(scribble_mask == 2))
-
-# Run segmentation
-pred_mask = gc.graph_cut(use_gmm=True)
-
-# Evaluate
-iou = compute_iou(pred_mask, gt_mask)
-print("IoU:", iou)
+image_dir = "dataset/images/"
+scribble_dir = "dataset/images-labels/"
+gt_dir = "dataset/images-gt/"
+output_dir = "output/"
 
 
-# Visualize results
-plt.figure(figsize=(15,5))
+os.makedirs(output_dir, exist_ok=True)
 
-plt.subplot(1,3,1)
-plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-plt.title("Original Image")
-plt.axis("off")
+# List all images in the directory
+image_files = [f for f in os.listdir(image_dir) if f.endswith(".jpg")]
 
-plt.subplot(1,3,2)
-plt.imshow(pred_mask, cmap='gray')
-plt.title("Predicted Mask")
-plt.axis("off")
+def run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True):
+    
+    # counter to skip first few images while tuning
+    # c = 0
 
-plt.subplot(1,3,3)
-plt.imshow(gt_mask, cmap='gray')
-plt.title("Ground Truth Mask")
-plt.axis("off")
+    # to calculate average iou over all images 
+    # this is only if n_components is kept constant for all images
+    sum = 0
 
-plt.tight_layout()
-plt.show()
+    for img_file in image_files:
+        print(f"Processing {img_file}...")
+        # skip first few while tuning for specific images - just for ease
+        # if c < 5: 
+        #     c += 1
+        #     continue
 
-# Save the predicted mask
-output_path = "predicted_mask.png"
-cv2.imwrite(output_path, pred_mask * 255)  # multiply by 255 to save as visible binary image
-print(f"Predicted mask saved to {output_path}")
+        # Paths
+        img_path = os.path.join(image_dir, img_file)
+        gt_path = os.path.join(gt_dir, os.path.splitext(img_file)[0] + ".png")
+        scribble_path = os.path.join(scribble_dir, os.path.splitext(img_file)[0] + "-anno.png")
+        
+        # Load data
+        image = cv2.imread(img_path)
+        gt_mask = cv2.imread(gt_path, 0)
+        gt_mask = (gt_mask > 0).astype(np.uint8)
+        
+        # Initialize GraphCut
+        gc = GraphCutCore(image, None)
+        scribble_mask = gc.load_scribbles(scribble_path)
+        gc.scribbles = scribble_mask
+        
+        # Debug scribbles
+        print("Scribbles loaded. FG pixels:", np.sum(scribble_mask == 1), 
+            "BG pixels:", np.sum(scribble_mask == 2))
+        
+        # Run segmentation
+        pred_mask = gc.graph_cut(use_gmm=True, 
+                                beta=tuning_params[image_files.index(img_file)][0], 
+                                lam=tuning_params[image_files.index(img_file)][1])
+        
+        # Evaluate IoU
+        iou = compute_iou(pred_mask, gt_mask)
+        print("IoU:", iou)
+        sum += iou
+        
+        # Visualize (optional, comment out if too many images)
+        plt.figure(figsize=(15,5))
+        
+        plt.subplot(1,3,1)
+        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        plt.title("Original Image")
+        plt.axis("off")
+        
+        plt.subplot(1,3,2)
+        plt.imshow(pred_mask, cmap='gray')
+        plt.title("Predicted Mask")
+        plt.axis("off")
+        
+        plt.subplot(1,3,3)
+        plt.imshow(gt_mask, cmap='gray')
+        plt.title("Ground Truth Mask")
+        plt.axis("off")
+        
+        plt.tight_layout()
+        plt.show()
+        
+        # Save predicted mask
+        output_path = os.path.join(output_dir, os.path.splitext(img_file)[0] + "_pred.png")
+        cv2.imwrite(output_path, pred_mask * 255)
+        print(f"Predicted mask saved to {output_path}\n")
+
+    print("Average IoU over all images:", sum / len(image_files))
+
+
+"""___________________________GMM METHOD___________________________"""
+
+# array to store beta and lambda values for each image
+
+# ! NOTE:
+# I have commented the best IOU values that we could get for each image
+# below are in case of gmm
+
+tuning_params = [
+    [0.001, 100],  # bike - IOU = 0.88 [n_components = 3 for this]
+    [0.005, 40],   # aero - IOU = 0.41 [n_components = 5 for this]
+    [0.003, 120],   # person7 - IOU = 0.51 [n_components = 5 for this]
+    [0.5, 50],  # 208001 - IOU = 0.35 [n_components = 2 for this]
+    [0.004, 90],   # scissors - IOU = 0.85 [n_components = 5 for this]
+    [0.008, 250],   # 106024 - IOU = 0.53 [n_components = 3 for this]
+]
+
+run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True)
+
+
+"""___________________________HISTOGRAM METHOD___________________________"""
