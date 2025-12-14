@@ -392,7 +392,7 @@ tuning_params = [
     [0.008, 250],   # 106024 - IOU = 0.53 [n_components = 3 for this]
 ]
 
-run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True)
+# run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=True)
 
 
 """___________________________HISTOGRAM METHOD___________________________"""
@@ -408,4 +408,4 @@ tuning_params = [
     [0.035, 150],   # 106024 - IOU = 0.45 
 ]
 
-run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=False)
+# run(tuning_params, image_files, image_dir, scribble_dir, gt_dir, output_dir, use_gmm=False)
