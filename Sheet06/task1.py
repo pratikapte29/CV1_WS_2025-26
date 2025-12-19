@@ -56,7 +56,14 @@ class MOG():
 
                     # all the formulas are from the above link - which is a summary of the original paper
                     # i could not access the full paper, so i have used formulas from the above summary
+
+                    # increase the weight ofthe matched Gaussian
                     self.omegas[i, j, matched_gaussian] = (1 - self.lr) * self.omegas[i, j, matched_gaussian] + self.lr
+
+                    # Decrease weights of unmatched Gaussians
+                    for k in range(self.number_of_gaussians):
+                        if k != matched_gaussian:
+                            self.omegas[i, j, k] = (1 - self.lr) * self.omegas[i, j, k]
                     
                     mu_t_1 = self.mus[i, j, matched_gaussian]  # mu at time t - 1
                     sigmaSQ_t_1 = self.sigmaSQs[i, j, matched_gaussian]  # sigma squared at time t - 1
@@ -65,10 +72,75 @@ class MOG():
                     mu_t = (1 - rho) * mu_t_1 + rho * X_t  # updated mu at time t
                     sigmaSQ_t = (1 - rho) * sigmaSQ_t_1 + rho * np.dot((X_t - mu_t), (X_t - mu_t))  # updated sigma squared at time t
 
-     
+                    self.mus[i, j, matched_gaussian] = mu_t
+                    self.sigmaSQs[i, j, matched_gaussian] = sigmaSQ_t
+
+                else:
+                    # mark X_t as foreground pixel
+                    BG_pivot[i, j] = 0
+
+                    # find the least probable Gaussian
+
+                    least_probable_gaussian = np.argmin(self.omegas[i, j])
+
+                    self.mus[i, j, least_probable_gaussian] = X_t
+                    self.sigmaSQs[i, j, least_probable_gaussian] = 36.0  # initial variance
+                    self.omegas[i, j, least_probable_gaussian] = 0.05  # initial weight
+
+                # Normalize the weights
+                self.omegas[i, j] = self.omegas[i, j] / np.sum(self.omegas[i, j])
+
+                # Order the Gaussians by omega/sigma
+                strength = self.omegas[i, j] / np.sqrt(self.sigmaSQs[i, j])
+
+                indices = np.argsort(-strength)  # negative for descending order
+
+                # Sum the weights in this ordering until the sum is greater thana preset threshold - here self.background_thresh
+
+                sum = 0
+                background_indices = []
+                for idx in indices:
+                    sum += self.omegas[i, j, idx]
+                    background_indices.append(idx)
+                    if sum > self.background_thresh:
+                        break
+                
+                # compute background pixel as mean of the selected Gaussians
+                # BG_pixel = np.zeros(3)
+                # for idx in background_indices:
+                #     BG_pixel += self.omegas[i, j, idx] * self.mus[i, j, idx]
+                    
+                # BG_pivot[i, j] = np.clip(BG_pixel, 0, 255)
+
+                is_background = False
+                for idx in background_indices:
+                    mu_k = self.mus[i, j, idx]
+                    sigma_k = np.sqrt(self.sigmaSQs[i, j, idx])
+                    
+                    if np.linalg.norm(X_t - mu_k) <= 2.5 * sigma_k:
+                        is_background = True
+                        break
+
+                # Set output: Background=0 (black), Foreground=255 (white)
+                if is_background:
+                    BG_pivot[i, j] = 0
+                else:
+                    BG_pivot[i, j] = 255
+
+        return BG_pivot.astype(np.uint8)
+
+
 for i in range(1, 3+1):#display first 3 labeled foreground images
     img = cv2.imread('imgs/{:04d}.jpg'.format(i))
-    mog=MOG() #finish this line of code
+    height, width = img.shape[:2]
+
+    mog=MOG(
+        height=height,
+        width=width,
+        number_of_gaussians=3,
+        background_thresh=0.5,
+        lr=0.01
+    ) #finish this line of code
     label_img = mog.updateParam(img, np.ones(img.shape[:2]))
     cv2.imwrite('label{:04d}.jpg'.format(i), label_img)
 
