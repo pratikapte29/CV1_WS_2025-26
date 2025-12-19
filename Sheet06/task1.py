@@ -30,7 +30,10 @@ class MOG():
         num_dim = 3  # RGB IMAGE OF DIMENSION 3
         diff = X - mu
 
-        return np.exp(-0.5 * np.dot(diff, diff) / sigmaSQ) / np.power(2 * np.pi * sigmaSQ, num_dim / 2)      
+        exponent = -np.sum(diff * diff) / (2 * sigmaSQ)
+        denominator = np.power(2 * np.pi * sigmaSQ, num_dim / 2.0)
+        
+        return np.exp(exponent) / denominator      
                 
     def updateParam(self, img, BG_pivot): #finish this function
         
@@ -111,26 +114,42 @@ class MOG():
                 #     BG_pixel += self.omegas[i, j, idx] * self.mus[i, j, idx]
                     
                 # BG_pivot[i, j] = np.clip(BG_pixel, 0, 255)
-
-                is_background = False
+                
+                BG_pixel = np.zeros(3)
+                total_weight = 0
                 for idx in background_indices:
-                    mu_k = self.mus[i, j, idx]
-                    sigma_k = np.sqrt(self.sigmaSQs[i, j, idx])
-                    
-                    if np.linalg.norm(X_t - mu_k) <= 2.5 * sigma_k:
-                        is_background = True
-                        break
+                    BG_pixel += self.omegas[i, j, idx] * self.mus[i, j, idx]
+                    total_weight += self.omegas[i, j, idx]
 
-                # Set output: Background=0 (black), Foreground=255 (white)
-                if is_background:
-                    BG_pivot[i, j] = 0
+                BG_pixel /= total_weight
+
+                # Decide if current pixel is foreground or background
+                avg_sigma = np.mean(np.sqrt(self.sigmaSQs[i, j, background_indices]))
+                if np.linalg.norm(X_t - BG_pixel) <= 2.5 * avg_sigma:
+                    BG_pivot[i, j] = 0  # background
                 else:
-                    BG_pivot[i, j] = 255
+                    BG_pivot[i, j] = 255  # foreground
+
+                """Below is barely working"""
+                # is_background = False
+                # for idx in background_indices:
+                #     mu_k = self.mus[i, j, idx]
+                #     sigma_k = np.sqrt(self.sigmaSQs[i, j, idx])
+                    
+                #     if np.linalg.norm(X_t - mu_k) <= 2.5 * sigma_k:
+                #         is_background = True
+                #         break
+
+                # # Set output: Background=0 (black), Foreground=255 (white)
+                # if is_background:
+                #     BG_pivot[i, j] = 0
+                # else:
+                #     BG_pivot[i, j] = 255
 
         return BG_pivot.astype(np.uint8)
 
 
-for i in range(1, 3+1):#display first 3 labeled foreground images
+for i in range(1, 14+1):#display first 3 labeled foreground images
     img = cv2.imread('imgs/{:04d}.jpg'.format(i))
     height, width = img.shape[:2]
 
