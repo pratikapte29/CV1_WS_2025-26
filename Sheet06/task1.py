@@ -1,5 +1,6 @@
 import sys
 import os
+from kiwisolver import strength
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
@@ -80,7 +81,7 @@ class MOG():
 
                 else:
                     # mark X_t as foreground pixel
-                    BG_pivot[i, j] = 0
+                    # BG_pivot[i, j] = 0
 
                     # find the least probable Gaussian
 
@@ -102,7 +103,7 @@ class MOG():
 
                 sum = 0
                 background_indices = []
-                for idx in indices:
+                for idx in range(len(indices)):
                     sum += self.omegas[i, j, idx]
                     background_indices.append(idx)
                     if sum > self.background_thresh:
@@ -115,41 +116,34 @@ class MOG():
                     
                 # BG_pivot[i, j] = np.clip(BG_pixel, 0, 255)
                 
-                BG_pixel = np.zeros(3)
-                total_weight = 0
-                for idx in background_indices:
-                    BG_pixel += self.omegas[i, j, idx] * self.mus[i, j, idx]
-                    total_weight += self.omegas[i, j, idx]
-
-                BG_pixel /= total_weight
-
-                # Decide if current pixel is foreground or background
-                avg_sigma = np.mean(np.sqrt(self.sigmaSQs[i, j, background_indices]))
-                if np.linalg.norm(X_t - BG_pixel) <= 2.5 * avg_sigma:
-                    BG_pivot[i, j] = 0  # background
-                else:
-                    BG_pivot[i, j] = 255  # foreground
-
-                """Below is barely working"""
-                # is_background = False
+                # BG_pixel = np.zeros(3)
+                # total_weight = 0
                 # for idx in background_indices:
-                #     mu_k = self.mus[i, j, idx]
-                #     sigma_k = np.sqrt(self.sigmaSQs[i, j, idx])
-                    
-                #     if np.linalg.norm(X_t - mu_k) <= 2.5 * sigma_k:
-                #         is_background = True
-                #         break
+                #     BG_pixel += self.omegas[i, j, idx] * self.mus[i, j, idx]
+                #     total_weight += self.omegas[i, j, idx]
 
-                # # Set output: Background=0 (black), Foreground=255 (white)
-                # if is_background:
-                #     BG_pivot[i, j] = 0
-                # else:
-                #     BG_pivot[i, j] = 255
+                # BG_pixel /= total_weight
+
+                # # Decide if current pixel is foreground or background
+                # avg_sigma = np.mean(np.sqrt(self.sigmaSQs[i, j, background_indices]))
+                bg_weight_sum = 0
+                bg_pixel = False
+
+                for k in range(self.number_of_gaussians):
+                    bg_weight_sum += self.omegas[i, j, k]
+                    dist = np.linalg.norm(X_t - self.mus[i, j, k])
+
+                    if bg_weight_sum > self.background_thresh:
+                        if dist <= self.dist_thresh * np.sqrt(self.sigmaSQs[i, j, k]):
+                            bg_pixel = True
+                            break
+                        if not bg_pixel:
+                            BG_pivot[i, j] = 255 # mark as foreground
 
         return BG_pivot.astype(np.uint8)
 
 
-for i in range(1, 14+1):#display first 3 labeled foreground images
+for i in range(1, 3+1):#display first 3 labeled foreground images
     img = cv2.imread('imgs/{:04d}.jpg'.format(i))
     height, width = img.shape[:2]
 
