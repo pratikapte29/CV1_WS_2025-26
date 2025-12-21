@@ -13,14 +13,14 @@ def compute_centroid(box):
 
 def clean_mask(mask):
     # Clean the foreground mask
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask_cleaned = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
 
     return mask_cleaned
 
 def detect_and_count_people(img_files_path, num_gaussians=5, bg_thresh=0.5, lr=0.01,
-                            min_area=400, min_aspect_ratio=0.5, dist_threshold=5):
+                            min_area=40, min_aspect_ratio=0.5, dist_threshold=5):
         
     first_img = cv2.imread(img_files_path + "0001.jpg")
     height, width = first_img.shape[:2]
@@ -46,6 +46,7 @@ def detect_and_count_people(img_files_path, num_gaussians=5, bg_thresh=0.5, lr=0
         
         # Find contours in the cleaned foreground mask
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        print("number of contours found: ", len(contours))
         
         for cnt in contours:
             area = cv2.contourArea(cnt)
@@ -65,6 +66,16 @@ def detect_and_count_people(img_files_path, num_gaussians=5, bg_thresh=0.5, lr=0
                     break
             if not already_counted:
                 valid_centroids.append(centroid)
+
+            vis_img = img.copy()
+            cv2.rectangle(vis_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.circle(vis_img, centroid, 5, (0, 0, 255), -1)
+            cv2.putText(vis_img, f"Area: {area:.0f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            cv2.putText(vis_img, f"AR: {aspect_ratio:.2f}", (x, y + h + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            cv2.imshow(f"Frame {i+1}", vis_img)
+            cv2.imshow(f"Mask {i+1}", fg_mask)
+            cv2.waitKey(0)  # Press any key to move to next frame
+            cv2.destroyAllWindows()
 
         print(f"Image {i + 1} people detected: {len(valid_centroids)}")
     return len(valid_centroids)
