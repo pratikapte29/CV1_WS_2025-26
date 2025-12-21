@@ -143,17 +143,17 @@ class MOG():
         return BG_pivot.astype(np.uint8)
 
 
-for i in range(1, 3+1):#display first 3 labeled foreground images
-    img = cv2.imread('imgs/{:04d}.jpg'.format(i))
-    height, width = img.shape[:2]
+# for i in range(1, 3+1):#display first 3 labeled foreground images
+#     img = cv2.imread('imgs/{:04d}.jpg'.format(i))
+#     height, width = img.shape[:2]
 
-    mog=MOG(
-        height=height,
-        width=width,
-        number_of_gaussians=3,
-        background_thresh=0.5,
-        lr=0.01
-    ) #finish this line of code
-    label_img = mog.updateParam(img, np.ones(img.shape[:2]))
-    cv2.imwrite('label{:04d}.jpg'.format(i), label_img)
+#     mog=MOG(
+#         height=height,
+#         width=width,
+#         number_of_gaussians=3,
+#         background_thresh=0.5,
+#         lr=0.01
+#     ) #finish this line of code
+#     label_img = mog.updateParam(img, np.ones(img.shape[:2]))
+#     cv2.imwrite('label{:04d}.jpg'.format(i), label_img)
 
