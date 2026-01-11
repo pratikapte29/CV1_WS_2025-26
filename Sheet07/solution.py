@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 class KalmanFilter:
-    def __init__(self, dt=0.1, sp=0.001, sm=0.05, use_lag_smoother=False):
+    def __init__(self, dt=0.1, sp=0.001, sm=0.05, use_lag_smoother=False, lag_size=5):
         self.dt = dt  # time step
         self.sp = sp  # process noise parameter
         self.sm = sm  # measurement noise parameter
@@ -33,7 +33,7 @@ class KalmanFilter:
 
         # _____Lag smoother parameters_____
 
-        self.N = 5  # lag size
+        self.N = lag_size  # lag size
         self.dim = 6  # state dimension
         self.aug_dim = self.dim * (self.N + 1)  # augmented state dimension
 
@@ -139,6 +139,85 @@ class KalmanFilter:
         plt.grid()
         plt.show()
 
+    def task3_ekf_analysis():
+        dt = 0.1
+        T = 200
+
+        Q = np.diag([0.001, 0.001, 0.001, 0.001])**2
+        R_small = np.diag([0.005, 0.005])**2
+        R_large = np.diag([0.05, 0.05])**2
+
+    def g(x):
+        x_new = np.zeros_like(x)
+        x_new[0] = x[0] + dt * x[3] * np.cos(x[2])
+        x_new[1] = x[1] + dt * x[3] * np.sin(x[2])
+        x_new[2] = x[2]
+        x_new[3] = x[3]
+        return x_new
+
+    def G_jacobian(x):
+        return np.array([
+            [1, 0, -dt * x[3] * np.sin(x[2]), dt * np.cos(x[2])],
+            [0, 1,  dt * x[3] * np.cos(x[2]), dt * np.sin(x[2])],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+
+    def h(x):
+        return x[:2]
+
+    H = np.array([[1, 0, 0, 0],
+                  [0, 1, 0, 0]])
+
+    x_true = np.zeros((T, 4))
+    x_true[0] = np.array([0.0, 0.0, 0.0, 1.0])
+
+    for t in range(1, T):
+        x_true[t] = g(x_true[t-1])
+        x_true[t, 2] += 0.6 * np.sin(0.2 * t * dt) * dt
+        x_true[t] += np.random.multivariate_normal(np.zeros(4), Q)
+
+    def generate_measurements(R):
+        return np.array([h(x) + np.random.multivariate_normal(np.zeros(2), R)
+                         for x in x_true])
+
+    def run_ekf(z, R):
+        x_est = np.zeros((T, 4))
+        P = np.eye(4)
+        x_est[0] = x_true[0]
+
+        for t in range(1, T):
+            G = G_jacobian(x_est[t-1])
+            x_pred = g(x_est[t-1])
+            P_pred = G @ P @ G.T + Q
+
+            y = z[t] - h(x_pred)
+            S = H @ P_pred @ H.T + R
+            K = P_pred @ H.T @ np.linalg.inv(S)
+
+            x_est[t] = x_pred + K @ y
+            P = (np.eye(4) - K @ H) @ P_pred
+
+        return x_est
+
+    for R, title in [(R_small, "Small Measurement Noise"),
+                     (R_large, "Large Measurement Noise")]:
+
+        z = generate_measurements(R)
+        x_est = run_ekf(z, R)
+
+        plt.figure(figsize=(8, 6))
+        plt.plot(x_true[:, 0], x_true[:, 1], 'k-', label='True trajectory')
+        plt.scatter(z[:, 0], z[:, 1], s=10, alpha=0.4, label='Measurements')
+        plt.plot(x_est[:, 0], x_est[:, 1], 'r--', label='EKF estimate')
+        plt.title(f"EKF Performance ({title})")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.legend()
+        plt.grid()
+        plt.tight_layout()
+        plt.show()
+
 
 def main():
     # Load observations # 1
@@ -151,13 +230,20 @@ def main():
 
     # TASK 2
     # run fixed lag smoother with lag of 5 steps
-    kf = KalmanFilter(dt=0.1, sp=0.001, sm=0.05, use_lag_smoother=True)
+    kf = KalmanFilter(dt=0.1, sp=0.001, sm=0.05, use_lag_smoother=True, lag_size=5)
     kf.run_and_visualize(observations)
 
-    # TASK 3
-    # analysis of effects of varying lag size
+    # analyze the output visually for diff lags
+    # explanation is in the reports
+    for lag in [1, 3, 5, 10]:
+        print(f"Running Kalman Filter with Lag Size: {lag}")
+        kf = KalmanFilter(dt=0.1, sp=0.001, sm=0.05, use_lag_smoother=True, lag_size=lag)
+        kf.run_and_visualize(observations)
+    
+    
 
-    pass
+    # TASK 3
+
 
 if __name__ == "__main__":
     main()
