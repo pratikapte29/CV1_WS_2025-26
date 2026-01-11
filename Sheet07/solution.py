@@ -139,13 +139,13 @@ class KalmanFilter:
         plt.grid()
         plt.show()
 
-    def task3_ekf_analysis():
-        dt = 0.1
-        T = 200
+def ekf_analysis():
+    dt = 0.1
+    T = 200
 
-        Q = np.diag([0.001, 0.001, 0.001, 0.001])**2
-        R_small = np.diag([0.005, 0.005])**2
-        R_large = np.diag([0.05, 0.05])**2
+    Q = np.diag([0.001, 0.001, 0.001, 0.001])**2
+    R_small = np.diag([0.005, 0.005])**2
+    R_large = np.diag([0.05, 0.05])**2
 
     def g(x):
         x_new = np.zeros_like(x)
@@ -174,12 +174,14 @@ class KalmanFilter:
 
     for t in range(1, T):
         x_true[t] = g(x_true[t-1])
-        x_true[t, 2] += 0.6 * np.sin(0.2 * t * dt) * dt
+        x_true[t, 2] = x_true[t-1, 2] + 0.6 * np.sin(0.2 * t * dt) * dt
         x_true[t] += np.random.multivariate_normal(np.zeros(4), Q)
 
     def generate_measurements(R):
-        return np.array([h(x) + np.random.multivariate_normal(np.zeros(2), R)
-                         for x in x_true])
+        z = np.zeros((T, 2))
+        for t in range(T):
+            z[t] = h(x_true[t]) + np.random.multivariate_normal(np.zeros(2), R)
+        return z
 
     def run_ekf(z, R):
         x_est = np.zeros((T, 4))
@@ -210,7 +212,7 @@ class KalmanFilter:
         plt.plot(x_true[:, 0], x_true[:, 1], 'k-', label='True trajectory')
         plt.scatter(z[:, 0], z[:, 1], s=10, alpha=0.4, label='Measurements')
         plt.plot(x_est[:, 0], x_est[:, 1], 'r--', label='EKF estimate')
-        plt.title(f"EKF Performance ({title})")
+        plt.title(f"EKF Tracking ({title})")
         plt.xlabel("x")
         plt.ylabel("y")
         plt.legend()
@@ -243,7 +245,8 @@ def main():
     
 
     # TASK 3
-
+    ekf_analysis()
+   
 
 if __name__ == "__main__":
     main()
