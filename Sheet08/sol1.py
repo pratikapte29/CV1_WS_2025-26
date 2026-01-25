@@ -14,16 +14,16 @@ def transform_shape(shape, theta):
     Transforms the landmark points by parameters from theta
 
     :param shape: np.ndarray of points
-    :param theta: array of tx, ty, scale, alpha
+    :param theta: array of tx, ty, s, alpha
     """
-    tx, ty, scale, alpha = theta
+    tx, ty, s, alpha = theta
 
     R = np.array([
         [np.cos(alpha), -np.sin(alpha)],
         [np.sin(alpha),  np.cos(alpha)]
     ])
 
-    return scale * (shape @ R.T) + np.array([tx, ty])
+    return s * (shape @ R.T) + np.array([tx, ty])
 
 
 def closest_edge_points(pts, edge_points):
@@ -42,7 +42,7 @@ def closest_edge_points(pts, edge_points):
 
 def estimate_transform(src, dst):
     """
-    Estimate tx, ty, scale, rotation from src → dst
+    Estimate tx, ty, s, rotation from src → dst
     """
     src_mean = np.mean(src, axis=0)
     dst_mean = np.mean(dst, axis=0)
@@ -58,13 +58,13 @@ def estimate_transform(src, dst):
         Vt[1, :] *= -1
         R = Vt.T @ U.T
 
-    scale = np.trace(R.T @ H) / np.sum(src_c ** 2)
+    s = np.trace(R.T @ H) / np.sum(src_c ** 2)
 
-    t = dst_mean - scale * (R @ src_mean)
+    t = dst_mean - s * (R @ src_mean)
 
     alpha = np.arctan2(R[1, 0], R[0, 0])
 
-    return np.array([t[0], t[1], scale, alpha])
+    return np.array([t[0], t[1], s, alpha])
 
 
 def main():
@@ -74,7 +74,7 @@ def main():
     img = cv2.GaussianBlur(img, (3, 3), sigmaX=2.0)
 
     # Canny edge detection
-    edges = cv2.Canny(img, 30, 100)
+    edges = cv2.Canny(img, 30, 80)
 
     cv2.imshow("Edges", edges)
     cv2.waitKey(0)
