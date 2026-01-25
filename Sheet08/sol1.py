@@ -71,10 +71,10 @@ def main():
     shape = load_landmarks("rat.txt")
 
     img = cv2.imread("rat.webp", cv2.IMREAD_GRAYSCALE)
-    img = cv2.GaussianBlur(img, (3, 3), sigmaX=0.5)
+    img = cv2.GaussianBlur(img, (3, 3), sigmaX=2.0)
 
     # Canny edge detection
-    edges = cv2.Canny(img, 20, 150)
+    edges = cv2.Canny(img, 30, 100)
 
     cv2.imshow("Edges", edges)
     cv2.waitKey(0)
